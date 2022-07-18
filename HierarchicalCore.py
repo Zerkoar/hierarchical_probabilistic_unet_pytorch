@@ -16,10 +16,8 @@ class _HierarchicalCore(nn.Module):
         self._latent_dims = latent_dims
         self._channels_per_block = channels_per_block
         self._activation_fn = activation_fn
-        # 每个残差块的卷积层数
         self._convs_per_block = convs_per_block
         self.in_channels = in_channels
-        # 每层几个残差块
         self._blocks_per_level = blocks_per_level
 
         if down_channels_per_block is None:
@@ -39,7 +37,7 @@ class _HierarchicalCore(nn.Module):
                     out_channels=self._channels_per_block[level],
                     activation_fn=self._activation_fn,
                     convs_per_block=self._convs_per_block))
-                encoder.append(nn.BatchNorm2d(self._channels_per_block[level]))
+                # encoder.append(nn.BatchNorm2d(self._channels_per_block[level]))
                 self.in_channels = self._channels_per_block[level]
             if level != self.num_leverls - 1:
                 encoder.append(unet_pytorch.Resize_down())
@@ -53,7 +51,7 @@ class _HierarchicalCore(nn.Module):
             latent_dim = self._latent_dims[level]
             self.in_channels = 3 * latent_dim + self._channels_per_block[-2 - level]
             decoder.append(nn.Conv2d(channels, 2 * latent_dim, kernel_size=(1, 1), padding=0))
-            decoder.append(nn.BatchNorm2d(2 * latent_dim))
+            # decoder.append(nn.BatchNorm2d(2 * latent_dim))
             decoder.append(unet_pytorch.Resize_up())
             for _ in range(self._blocks_per_level):
                 decoder.append(unet_pytorch.Res_block(
@@ -63,7 +61,7 @@ class _HierarchicalCore(nn.Module):
                     activation_fn=self._activation_fn,
                     convs_per_block=self._convs_per_block
                 ))
-                decoder.append(nn.BatchNorm2d(self._channels_per_block[-2 - level]))
+                # decoder.append(nn.BatchNorm2d(self._channels_per_block[-2 - level]))
                 self.in_channels = self._channels_per_block[-2 - level]
             channels = self._channels_per_block[-2 - level]
         self.decoder = nn.Sequential(*decoder)
@@ -93,6 +91,8 @@ class _HierarchicalCore(nn.Module):
         for decoder in self.decoder:
             decoder_features = decoder(decoder_features)
             if type(decoder) == nn.Conv2d:
+                #
+                bn = nn.BatchNorm2d(decoder_features.shape[1])
                 # 通道数取到_latent_dims[i]
                 mu = decoder_features[::, :self._latent_dims[i]]
                 # 通道数从_latent_dims[i]开始取

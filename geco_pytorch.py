@@ -41,6 +41,21 @@ def _topk_mask(score, k):
 
 
 def ce_loss(logits, labels, mask=None, top_k_percentage=None, deterministic=False):
+    """Computes the cross-entropy loss.
+    Optionally a mask and a top-k percentage for the used pixels can be specified.
+    The top-k mask can be produced deterministically or sampled.
+    Args:
+      logits: A tensor of shape (b,h,w,num_classes)
+      labels: A tensor of shape (b,h,w,num_classes)
+      mask: None or a tensor of shape (b,h,w).
+      top_k_percentage: None or a float in (0.,1.]. If None, a standard
+        cross-entropy loss is calculated.
+      deterministic: A Boolean indicating whether or not to produce the
+        prospective top-k mask deterministically.
+    Returns:
+      A dictionary holding the mean and the pixelwise sum of the loss for the
+      batch as well as the employed loss mask.
+    """
     num_classes = list(logits.shape)[-1]
     y_flat = torch.reshape(logits, (-1, num_classes))
     t_flat = torch.reshape(logits, (-1, num_classes))

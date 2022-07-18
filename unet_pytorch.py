@@ -20,11 +20,11 @@ class Res_block(nn.Module):
         layers = []
         layers.append(activation_fn)
         layers.append(nn.Conv2d(self.in_channels, self.n_down_channels, kernel_size=(3, 3), padding=1))
-        layers.append(activation_fn)
+        # layers.append(activation_fn)
 
-        for c in range(convs_per_block - 1):
+        for c in range(convs_per_block):
             layers.append(nn.Conv2d(self.n_down_channels, self.n_down_channels, kernel_size=(3, 3), padding=1))
-            if c < convs_per_block - 2:
+            if c < convs_per_block - 1:
                 layers.append(activation_fn)
 
         if self.in_channels != self.out_channels:
@@ -36,7 +36,7 @@ class Res_block(nn.Module):
             layers.append(nn.Conv2d(self.n_down_channels, self.out_channels, kernel_size=(1, 1), padding=0))
 
         self.layers = nn.Sequential(*layers)
-        # self.layers.apply(utils.init_weights_orthogonal_normal)
+        self.layers.apply(utils.init_weights_orthogonal_normal)
 
     def forward(self, input_features):
         if self.in_channels != self.out_channels:

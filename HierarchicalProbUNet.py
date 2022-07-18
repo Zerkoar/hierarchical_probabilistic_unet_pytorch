@@ -14,7 +14,12 @@ class HierarchicalProbUNet(nn.Module):
                down_channels_per_block=None, activation_fn=nn.ReLU(), initializers=None, regularizers=None,
                convs_per_block=3, blocks_per_level=3, loss_kwargs=None):
         super(HierarchicalProbUNet, self).__init__()
-        # num_channels: 分类数
+        ''' 
+            num_channels: 分类数
+            convs_per_block: 每个残差块的卷积层数
+            blocks_per_level: 每层几个残差块
+        '''
+        # 设置通道数
         base_channels = 24
         default_channels_per_block = (
             base_channels, 2 * base_channels, 4 * base_channels, 8 * base_channels,
@@ -41,8 +46,8 @@ class HierarchicalProbUNet(nn.Module):
             }
         else:
             self._loss_kwargs = loss_kwargs
-        if down_channels_per_block is None:
-            down_channels_per_block = channels_per_block
+        # if down_channels_per_block is None:
+        #     down_channels_per_block = channels_per_block
 
         # with self._enter_variable_scope():
         self.prior = _HierarchicalCore(

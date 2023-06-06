@@ -25,12 +25,12 @@ class _HierarchicalCore(nn.Module):
         else:
             self._dowm_channels_per_block = down_channels_per_block
         self._name = name
-        self.num_leverls = len(self._channels_per_block)
+        self.num_levels = len(self._channels_per_block)
         self.num_latent_levels = len(self._latent_dims)
 
         # 左边encoder部分
         encoder = []
-        for level in range(self.num_leverls):
+        for level in range(self.num_levels):
             for _ in range(self._blocks_per_level):
                 encoder.append(unet_pytorch.Res_block(
                     in_channels=self.in_channels,
@@ -39,10 +39,10 @@ class _HierarchicalCore(nn.Module):
                     convs_per_block=self._convs_per_block))
                 # encoder.append(nn.BatchNorm2d(self._channels_per_block[level]))
                 self.in_channels = self._channels_per_block[level]
-            if level != self.num_leverls - 1:
+            if level != self.num_levels - 1:
                 encoder.append(unet_pytorch.Resize_down())
         self.encoder = nn.Sequential(*encoder)
-        self.encoder.apply(utils.init_weights_orthogonal_normal)
+        # self.encoder.apply(utils.init_weights_orthogonal_normal)
 
         # 右边decoder部分 包含prior block
         decoder = []
@@ -81,7 +81,7 @@ class _HierarchicalCore(nn.Module):
             encoder_features = encoder(encoder_features)
             if type(encoder) == unet_pytorch.Res_block:
                 count += 1
-            if count == 3:
+            if count == self._blocks_per_level:
                 encoder_outputs.append(encoder_features)
                 count = 0
 
@@ -92,7 +92,7 @@ class _HierarchicalCore(nn.Module):
             decoder_features = decoder(decoder_features)
             if type(decoder) == nn.Conv2d:
                 #
-                bn = nn.BatchNorm2d(decoder_features.shape[1])
+                # bn = nn.BatchNorm2d(decoder_features.shape[1])
                 # 通道数取到_latent_dims[i]
                 mu = decoder_features[::, :self._latent_dims[i]]
                 # 通道数从_latent_dims[i]开始取

@@ -20,23 +20,22 @@ class Res_block(nn.Module):
         layers = []
         layers.append(activation_fn)
         layers.append(nn.Conv2d(self.in_channels, self.n_down_channels, kernel_size=(3, 3), padding=1))
-        # layers.append(activation_fn)
+        layers.append(activation_fn)
 
-        for c in range(convs_per_block):
+        for c in range(convs_per_block - 1):
             layers.append(nn.Conv2d(self.n_down_channels, self.n_down_channels, kernel_size=(3, 3), padding=1))
-            if c < convs_per_block - 1:
+            if c < convs_per_block - 2:
                 layers.append(activation_fn)
 
         if self.in_channels != self.out_channels:
             self.skip = nn.Conv2d(self.in_channels, self.out_channels, kernel_size=(1, 1), padding=0)
-            nn.init.kaiming_normal_(self.skip.weight, mode='fan_in', nonlinearity='relu')
-            utils.truncated_normal_(self.skip.bias, mean=0, std=0.001)
+            # self.skip.apply(utils.init_weights_orthogonal_normal)
 
         if self.n_down_channels != self.out_channels:
             layers.append(nn.Conv2d(self.n_down_channels, self.out_channels, kernel_size=(1, 1), padding=0))
 
         self.layers = nn.Sequential(*layers)
-        self.layers.apply(utils.init_weights_orthogonal_normal)
+        # self.layers.apply(utils.init_weights_orthogonal_normal)
 
     def forward(self, input_features):
         if self.in_channels != self.out_channels:

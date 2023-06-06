@@ -6,27 +6,46 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+"""
+This is a part of implementation of GECO(Generalized ELBO with Constrained Optimization) algorithm
+from "Taming VAEs"[https://arxiv.org/pdf/1810.00597.pdf]
+"""
+class MovingAverage(nn.Module):
+    """
+    Refer to https://github.com/deepmind/sonnet/blob/v1/sonnet/python/modules/moving_average.py
+    """    
+    def __init__(self, decay, local=True, differentiable=False, name='moving_average'):
+        super(MovingAverage, self).__init__(name=name)
+        self._differentiable = differentiable
+        if decay < 0.0 or decay > 1.0:
+            raise ValueError("Decay must be a float in the [0, 1] range, "
+                            "but is {}.".format(decay))
+        self._decay = decay
+        self._initialized = False
 
-# class MovingAverage(nn.Module):
-#     def __init__(self, decay, local=True, differentiable=False, name='moving_average'):
-#         super(MovingAverage, self).__init__(name=name)
-#         self._differentiable = differentiable
-#         self._moving_average = nn.MovingAverage(decay=decay, local=local, name=name)
-#
-#     def forward(self, inputs):
-#         if not self._differentiable:
-#             inputs = inputs.detach()
-#
-#         return self._moving_average(inputs)
-#
-#
-# class LagrangeMultiplier(nn.Module):
-#     def __init__(self, rate=1e-2, name='lagrange_multiplier'):
-#         super(LagrangeMultiplier, self).__init__(name=name)
-#         self._rate = rate
+    def forward(self, inputs):
+        if not self._initialized:
+            self._moving_average = inputs
+            self._initialized = True
+        else:
+            self._moving_average = (1 - self._decay) * inputs + decay * self._moving_average
 
-    # def forward(self, ma_constraint):
-    #     lagmul =
+        return inputs + (self._moving_average - inputs).detach()
+
+
+class LagrangeMultiplier(nn.Module):
+    """
+    Refer to https://github.com/deepmind/sonnet/blob/v1/sonnet/python/modules/optimization_constraints.py
+    """    
+    def __init__(self, ma_constraint, rate=1e-2, name='lagrange_multiplier'):
+        super(LagrangeMultiplier, self).__init__(name=name)
+        self.lambda_var = nn.Parameter(torch.ones(ma_constraint.shape))
+        self.lambda_var.register_hook(lambda grad: - grad * rate)
+        self.softplus = nn.Softplus()
+
+    def forward(self, ma_constraint):
+        lag_multiplier = self.softplus(self.lambda_var) ** 2
+        return lag_multiplier
 
 
 def _sample_gumbel(shape, eps=1e-20):
@@ -56,6 +75,9 @@ def ce_loss(logits, labels, mask=None, top_k_percentage=None, deterministic=Fals
       A dictionary holding the mean and the pixelwise sum of the loss for the
       batch as well as the employed loss mask.
     """
+    logits = logits.permute(0, 2, 3, 1)
+    labels = labels.permute(0, 2, 3, 1)
+
     num_classes = list(logits.shape)[-1]
     y_flat = torch.reshape(logits, (-1, num_classes))
     t_flat = torch.reshape(logits, (-1, num_classes))

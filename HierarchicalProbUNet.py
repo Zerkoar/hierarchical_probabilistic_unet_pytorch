@@ -65,7 +65,7 @@ class HierarchicalProbUNet(nn.Module):
 
         self.posterior = _HierarchicalCore(
             latent_dims=latent_dims,
-            in_channels=2 * in_channels,
+            in_channels=in_channels + num_classes,
             channels_per_block=channels_per_block,
             down_channels_per_block=down_channels_per_block,
             activation_fn=activation_fn,
@@ -75,7 +75,7 @@ class HierarchicalProbUNet(nn.Module):
             blocks_per_level=blocks_per_level,
             name='posterior')
 
-        self. f_comb = _StitchingDecoder(
+        self.f_comb = _StitchingDecoder(
             latent_dims=latent_dims,
             in_channels=channels_per_block[-len(latent_dims) - 1] + channels_per_block[-len(latent_dims) - 2],
             channels_per_block=channels_per_block,
@@ -88,9 +88,9 @@ class HierarchicalProbUNet(nn.Module):
             blocks_per_level=blocks_per_level,
             name='f_comb')
 
-        # if self._loss_kwargs['type'] == 'geco':
-        #     self._moving_average = geco_pytorch.MovingAverage()
-        #     self._lagmul = geco_pytorch.LagrangeMultiplier()
+        if self._loss_kwargs['type'] == 'geco':
+            self._moving_average = geco_pytorch.MovingAverage()
+            self._lagmul = geco_pytorch.LagrangeMultiplier()
         self._cache = ()
 
     def forward(self, seg, img):
@@ -175,15 +175,15 @@ class HierarchicalProbUNet(nn.Module):
             num_valid_pixels = mask_sum_per_instance.mean()
             reconstruction_threshold = self._loss_kwargs['kappa'] * num_valid_pixels
 
-            # rec_constraint = ma_rec_loss - reconstruction_threshold
-            # lagmul = self._lagmul(rec_constraint)
-            # loss = lagmul * rec_constraint + kl_sum
+            rec_constraint = ma_rec_loss - reconstruction_threshold
+            lagmul = self._lagmul(rec_constraint)
+            loss = lagmul * rec_constraint + kl_sum
             loss = kl_sum
 
             summaries['geco_loss'] = loss
-            # summaries['ma_rec_loss_mean'] = ma_rec_loss / num_valid_pixels
+            summaries['ma_rec_loss_mean'] = ma_rec_loss / num_valid_pixels
             summaries['num_valid_pixels'] = num_valid_pixels
-            # summaries['lagmul'] = lagmul
+            summaries['lagmul'] = lagmul
         else:
             raise NotImplementedError('Loss type {} not implemeted!'.format(
                 self._loss_kwargs['type']))
